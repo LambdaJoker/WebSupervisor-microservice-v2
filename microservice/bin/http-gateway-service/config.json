@@ -1,0 +1,19 @@
+{
+  "redis": {
+    "addr": "localhost:6379",
+    "password": "",
+    "db": 0
+  },
+  "stream": {
+    "consumer_stream": "dev:http-gateway-stream",
+    "consumer_group": "http-gateway-group",
+    "goroutine_num": 5,
+    "get_timeout_ms": 30000,
+    "max_message_bytes": 204800
+  },
+  "custom": {
+    "http_addr": "127.0.0.1:8080",
+    "default_timeout_ms": 30000,
+    "max_timeout_ms": 120000
+  }
+}

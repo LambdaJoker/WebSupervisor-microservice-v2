@@ -1,5 +1,5 @@
 #!/bin/bash
-# Launch all 5 services in the background, each writing to its own log file.
+# Launch all 6 services in the background, each writing to its own log file.
 # Logs land in bin/<service>/<service>.log
 # Requires: Redis reachable per each config.json.
 # Tip:  tail -f */*.log        # follow all logs
@@ -7,7 +7,7 @@
 
 cd "$(dirname "$0")" || exit 1
 
-services=(crawler-service email-service parser-service redis_cache-service web_supervisor-manager)
+services=(crawler-service email-service parser-service redis_cache-service web_supervisor-manager http-gateway-service)
 
 echo "=== Launching all services ==="
 for s in "${services[@]}"; do

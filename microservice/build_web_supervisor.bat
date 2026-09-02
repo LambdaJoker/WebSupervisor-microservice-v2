@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 cd /d "%~dp0"
 
-set "services=crawler-service email-service parser-service redis_cache-service web_supervisor-manager"
+set "services=crawler-service email-service parser-service redis_cache-service web_supervisor-manager http-gateway-service"
 set "targets=linux/arm64 linux/amd64 windows/amd64"
 
 if not exist "bin" mkdir bin

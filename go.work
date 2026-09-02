@@ -9,4 +9,5 @@ use (
 	./microservice/crawler-service
 	./microservice/parser-service
 	./microservice/web_supervisor-manager
+	./microservice/http-gateway-service
 )

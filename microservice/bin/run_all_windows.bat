@@ -1,12 +1,12 @@
 @echo off
-REM Launch all 5 services in separate console windows.
+REM Launch all 6 services in separate console windows.
 REM Each window runs <service>\run_windows.bat and stays open (cmd /k).
 REM Requires: Redis reachable per each config.json.
 
 setlocal
 cd /d "%~dp0"
 
-set "services=crawler-service email-service parser-service redis_cache-service web_supervisor-manager"
+set "services=crawler-service email-service parser-service redis_cache-service web_supervisor-manager http-gateway-service"
 
 echo === Launching all services ===
 for %%s in (%services%) do (
