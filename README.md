@@ -234,6 +234,17 @@ web_supervisor-manager
    │            返回 changed        │            发送通知邮件
 ```
 
+## Rust 轻量控制台
+
+启动 HTTP Gateway 和需要查看的微服务后，可运行 Rust 控制台：
+
+```powershell
+cd microservice\web-ui-service
+cargo run -- -config_path .\config.json
+```
+
+浏览器打开 `http://127.0.0.1:8090`，即可查看服务 `ping` 状态、调用爬虫并浏览本进程最近的抓取结果。控制台只通过 HTTP Gateway 调用现有 Redis Streams 协议，不引入独立数据库或前端构建链路。
+
 ## 构建与运行
 
 前提：本机或远程运行 Redis；Go 1.25+（使用 `go.work`，无需手动替换依赖）。
