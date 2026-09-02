@@ -1,12 +1,49 @@
 {
   "listen_addr": "127.0.0.1:8090",
-  "gateway_addr": "http://127.0.0.1:8080",
+  "gateway_addr": "http://127.0.0.1:18080",
   "crawl_timeout_ms": 120000,
   "services": [
-    { "name": "crawler", "stream": "dev:crawler-stream" },
-    { "name": "parser", "stream": "dev:parser-stream" },
-    { "name": "redis_cache", "stream": "dev:redis_cache-stream" },
-    { "name": "email", "stream": "dev:email-stream" },
-    { "name": "calculator", "stream": "dev:calculator-stream" }
+    {
+      "name": "http-gateway",
+      "stream": "dev:http-gateway-stream",
+      "command": "..\\bin\\http-gateway-service\\http-gateway-service_windows_amd64.exe",
+      "args": ["-config_path", "config.json"],
+      "workdir": "..\\bin\\http-gateway-service"
+    },
+    {
+      "name": "crawler",
+      "stream": "dev:crawler-stream",
+      "command": "..\\bin\\crawler-service\\crawler-service_windows_amd64.exe",
+      "args": ["-config_path", "config.json"],
+      "workdir": "..\\bin\\crawler-service"
+    },
+    {
+      "name": "parser",
+      "stream": "dev:parser-stream",
+      "command": "..\\bin\\parser-service\\parser-service_windows_amd64.exe",
+      "args": ["-config_path", "config.json"],
+      "workdir": "..\\bin\\parser-service"
+    },
+    {
+      "name": "redis_cache",
+      "stream": "dev:redis_cache-stream",
+      "command": "..\\bin\\redis_cache-service\\redis_cache-service_windows_amd64.exe",
+      "args": ["-config_path", "config.json"],
+      "workdir": "..\\bin\\redis_cache-service"
+    },
+    {
+      "name": "email",
+      "stream": "dev:email-stream",
+      "command": "..\\bin\\email-service\\email-service_windows_amd64.exe",
+      "args": ["-config_path", "config.json"],
+      "workdir": "..\\bin\\email-service"
+    },
+    {
+      "name": "calculator",
+      "stream": "dev:calculator-stream",
+      "command": "..\\bin\\calculator-service\\calculator-service_windows_amd64.exe",
+      "args": ["-config_path", "config.json"],
+      "workdir": "..\\bin\\calculator-service"
+    }
   ]
 }
