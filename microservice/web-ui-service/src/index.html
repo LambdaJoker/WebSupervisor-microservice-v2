@@ -57,7 +57,7 @@
 
   <div class="grid">
     <aside class="panel">
-      <div class="toolbar"><div><h2>服务状态</h2><div class="hint">每 5 秒自动刷新；仅管理配置中的本地进程</div></div><div class="toolbar-actions"><button id="start-all" type="button">全部启动</button><button id="start-offline" type="button">启动离线</button><button id="stop-all" class="warn" type="button">全部停止</button><button id="refresh" type="button">刷新</button></div></div>
+      <div class="toolbar"><div><h2>服务状态</h2><div class="hint">每 5 秒自动刷新；仅管理配置中的本地进程</div></div><div class="toolbar-actions"><button id="start-all" type="button">全部启动</button><button id="start-offline" type="button">启动离线</button><button id="restart-all" type="button">全部重启</button><button id="stop-all" class="warn" type="button">全部停止</button><button id="refresh" type="button">刷新</button></div></div>
       <div id="services" class="services"><div class="muted empty">检查中…</div></div>
     </aside>
 
@@ -129,7 +129,7 @@ async function serviceAction(name, action, button){
   catch (e) { setMessage('message', `${name} 操作失败：${e.message}`); await refreshServices(false); }
 }
 async function batchAction(action, label){
-  const buttons = document.querySelectorAll('#start-all,#start-offline,#stop-all,#refresh'); buttons.forEach(button => button.disabled = true); setMessage('message', `${label}中…`);
+  const buttons = document.querySelectorAll('#start-all,#start-offline,#restart-all,#stop-all,#refresh'); buttons.forEach(button => button.disabled = true); setMessage('message', `${label}中…`);
   try { const data = await api(`/api/services/${action}`, {method:'POST'}); const failed = (data.results || []).filter(item => !item.ok); setMessage('message', failed.length ? `${label}完成，但 ${failed.length} 个服务失败：${failed.map(item => `${item.name}（${item.error}）`).join('；')}` : `${label}完成`); await refreshServices(false); }
   catch (e) { setMessage('message', `${label}失败：${e.message}`); }
   finally { buttons.forEach(button => button.disabled = false); }
@@ -148,6 +148,7 @@ async function refreshRecent(){
 $('refresh').onclick = () => refreshServices();
 $('start-all').onclick = () => batchAction('start-all', '全部启动');
 $('start-offline').onclick = () => batchAction('start-offline', '启动离线服务');
+$('restart-all').onclick = () => { if (confirm('确定重启所有由控制台管理的服务吗？')) batchAction('restart-all', '全部重启'); };
 $('stop-all').onclick = () => { if (confirm('确定停止所有由控制台管理的服务吗？')) batchAction('stop-all', '全部停止'); };
 $('services').onclick = event => { const button = event.target.closest('button[data-service]'); if (!button) return; const name = button.dataset.service; const action = button.dataset.action; if (action === 'logs') toggleLogs(name); else if (action === 'clear-logs') api(`/api/services/${encodeURIComponent(name)}/logs/clear`, {method:'POST'}).then(() => loadLogs(name)).catch(e => setMessage('message', `清空日志失败：${e.message}`)); else if (action === 'reload-logs') loadLogs(name); else serviceAction(name, action, button); };
 $('crawl-form').onsubmit = async event => { event.preventDefault(); const button = $('submit'); button.disabled = true; setMessage('message', '请求中…'); let headers, body; try { headers = JSON.parse($('headers').value || '{}'); body = JSON.parse($('body').value || '{}'); } catch (_) { setMessage('message', 'Headers / Body 必须是有效 JSON'); button.disabled = false; return; } try { const data = await api('/api/crawl',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('url').value,method:$('method').value,headers,body})}); setMessage('message', `完成：上游状态 ${data.status}，响应 ${data.content.length} 字符`); await refreshRecent(); } catch (e) { setMessage('message', `失败：${e.message}`); } finally { button.disabled = false; } };
