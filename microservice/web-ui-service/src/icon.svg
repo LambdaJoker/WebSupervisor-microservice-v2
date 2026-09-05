@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">WebSupervisor</title>
+  <desc id="desc">A bright gateway mark connecting three service streams.</desc>
+  <defs>
+    <linearGradient id="surface" x1="20" y1="14" x2="228" y2="244" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0d6bff"/>
+      <stop offset=".52" stop-color="#1e9eff"/>
+      <stop offset="1" stop-color="#67d9dc"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="48" y1="32" x2="204" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity=".34"/>
+      <stop offset=".48" stop-color="#fff" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#0751bd" flood-opacity=".25"/>
+    </filter>
+  </defs>
+  <rect x="12" y="12" width="232" height="232" rx="62" fill="#092e77" opacity=".22" filter="url(#shadow)"/>
+  <rect x="16" y="10" width="224" height="224" rx="58" fill="url(#surface)"/>
+  <rect x="16" y="10" width="224" height="224" rx="58" fill="url(#shine)"/>
+  <path d="M55 66h23l25 78 27-78h20l27 78 25-78h23l-36 112h-22l-27-75-27 75H91L55 66Z" fill="#fff"/>
+  <path d="M54 66h23l25 78 27-78h20l27 78 25-78h23" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="7" opacity=".32"/>
+  <circle cx="194" cy="52" r="13" fill="#ffcf70"/>
+  <circle cx="194" cy="52" r="5" fill="#fff4d4"/>
+  <path d="M42 206c35 20 109 31 171 2" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="5" opacity=".18"/>
+</svg>

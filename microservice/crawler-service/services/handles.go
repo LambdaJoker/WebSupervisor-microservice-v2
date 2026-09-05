@@ -56,7 +56,7 @@ func HandleHttpRequestHttpRequest(msg *stream.StreamMessage) {
 	} else {
 		log.Printf("Debug - HTTP response status code: %d", statusCode)
 	}
-	log.Printf(">>>handleHttpRequest response: %s", len(response))
+	log.Printf(">>>handleHttpRequest response: %d bytes", len(response))
 
 	// response,err= stream.CacheSet(params.URL,response,1*time.Hour)
 	// if err!= nil{

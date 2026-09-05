@@ -1,4 +1,14 @@
-# microservice/bin/
+# Go build output
+microservice/bin/
+
+# Local-only runtime/configuration state
+**/config.local.json
+**/*.local.json
+**/data/
+.env
+.env.*
+!.env.example
+
 go.sum
-go.word.sum
+go.work.sum
 target/

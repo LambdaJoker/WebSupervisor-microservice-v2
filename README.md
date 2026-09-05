@@ -236,14 +236,20 @@ web_supervisor-manager
 
 ## Rust 轻量控制台
 
-启动 HTTP Gateway 和需要查看的微服务后，可运行 Rust 控制台：
+`microservice/web-ui-service` 默认编译为原生 Rust 桌面 GUI（`wry` + `tao`），复用现有 HTML/CSS 页面和 HTTP Gateway、Redis Streams 协议，不引入 Electron、Node 或独立数据库。Wry/Tao 比完整 Tauri 壳更轻量，但保留了真正的 WebView 桌面窗口；GUI 支持服务启动/停止/重启、批量操作、日志、HTTP 抓取、RPC 调试和最近结果查看。
 
 ```powershell
 cd microservice\web-ui-service
-cargo run -- -config_path .\config.json
+cargo run --release -- -config_path .\config.json
 ```
 
-浏览器打开 `http://127.0.0.1:8090`，即可查看服务 `ping` 状态、调用爬虫并浏览本进程最近的抓取结果。控制台只通过 HTTP Gateway 调用现有 Redis Streams 协议，不引入独立数据库或前端构建链路。
+需要浏览器控制台时使用 Web 模式：
+
+```powershell
+cargo run --release -- --web -config_path .\config.json
+```
+
+桌面模式会直接打开原生 WebView 窗口，页面采用纯白玻璃风格；需要浏览器控制台时使用 Web 模式。Windows 需要系统已安装 WebView2 Runtime（Windows 11 通常自带）。浏览器打开 `http://127.0.0.1:8090`。Gateway 根路径 `/` 返回 404 是正常的，实际接口是 `POST /rpc`；如果返回 HTTP 504，表示 Gateway 已连通但目标 Redis Stream 没有服务消费者响应。
 
 ## 构建与运行
 
@@ -269,6 +275,40 @@ go build -o my-service.exe .
 
 配置文件中密码、邮箱账号等敏感信息建议用环境变量注入，例如 config.json 写 `"password": "${QQ_MAIL_PASSWORD_1134}"`，启动前 `set QQ_MAIL_PASSWORD_1134=xxx`。
 
+### 哪些配置必须修改
+
+默认配置已经可以用于“本机 Redis（`localhost:6379`）+ 默认端口”的开发环境，不是每一项都必须改。启动前只需按实际环境确认下面几项：
+
+| 配置 | 什么时候必须改 | 修改位置 |
+|---|---|---|
+| Redis 地址/密码/DB | Redis 不在本机、端口不是 `6379` 或启用了认证 | 各服务配置的 `redis`；至少要覆盖实际启动的服务 |
+| Gateway 地址/端口 | `18080` 被占用，或 Gateway 不在本机 | `microservice/bin/http-gateway-service/config.json` 的 `custom.http_addr`，以及 `microservice/web-ui-service/config.json` 的 `gateway_addr`，两者必须匹配 |
+| UI 端口 | `8090` 被占用 | `microservice/web-ui-service/config.json` 的 `listen_addr` |
+| 服务可执行文件路径 | 换了操作系统、编译目标或 `bin` 目录 | `microservice/web-ui-service/config.json` 的 `services[].command/workdir` |
+| 邮箱配置 | 只有要发送邮件或运行网页监控通知时 | `email-service` 的 SMTP 配置和 `web_supervisor-manager` 的收件人配置 |
+| `jobs.json` | 只有要运行网页监控编排器时 | `microservice/bin/web_supervisor-manager/jobs.json` |
+
+其中 Redis、Gateway 是控制台抓取链路的核心依赖；邮箱和 `web_supervisor-manager` 是可选功能。QQ 邮箱的 `password` 应填写 SMTP 授权码，不是 QQ 登录密码。
+
+### 本地配置与 GitHub 默认配置
+
+推荐把仓库中的 `config.json` 当作无个人信息的默认模板，本地个性化配置写入同目录的 `config.local.json`。Rust 控制台的“配置”弹窗会自动写入各服务的本地配置；控制台自身也会在 `config.json` 同目录自动优先读取 `config.local.json`。`config.local.json`、`.env` 和运行数据目录已加入 `.gitignore`，不会提交到 GitHub。
+
+敏感值优先使用环境变量。仓库提供了安全模板 [`.env.example`](.env.example)，它不会包含真实密码；`.env` 由 Rust GUI 在启动时自动读取，并传递给它启动的 Go 子服务；如果直接启动 Go 服务，则仍需先把变量注入当前进程：
+
+```powershell
+$env:QQ_MAIL_ACCOUNT_1134 = "你的发件邮箱"
+$env:QQ_MAIL_PASSWORD_1134 = "邮箱授权码"
+$env:QQ_MAIL_ACCOUNT_2667 = "通知收件邮箱"
+```
+
+如果已经直接修改了 Git 已跟踪的 `config.json`，仅添加 `.gitignore` 不会隐藏这次修改。先把需要保留的内容复制到对应目录的 `config.local.json`（或用 GUI 配置弹窗保存），确认默认文件中的个人值已移除后，再执行：
+
+```powershell
+git restore -- microservice/bin/<service>/config.json
+```
+
+不要使用 `git add -f` 提交 `config.local.json`、`.env` 或真实密码。提交前可用 `git status --short` 和 `git diff --check` 检查。
 ## 调试工具
 
 - `MyTool/streams-manager`：Redis Stream 命令行管理工具，可查看/添加/删除 Stream 与消息（详见其目录内 README），排障时可用 `streams-manager ls dev:crawler-stream` 直接查看队列内容。
