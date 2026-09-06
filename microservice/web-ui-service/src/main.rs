@@ -22,6 +22,8 @@ const LOG_BYTE_LIMIT: usize = 32 * 1024;
 struct Config {
     listen_addr: String,
     gateway_addr: String,
+    #[serde(default = "default_manager_addr")]
+    manager_addr: String,
     crawl_timeout_ms: i64,
     #[serde(default)]
     services: Vec<ServiceConfig>,
@@ -113,6 +115,10 @@ struct CrawlRequest {
 
 fn default_method() -> String {
     "GET".to_string()
+}
+
+fn default_manager_addr() -> String {
+    "http://127.0.0.1:18081".to_string()
 }
 
 fn default_object() -> Value {
@@ -295,6 +301,47 @@ fn handle_request(mut request: Request, state: AppState) {
             respond_json(request, 200, &clear_history(&state));
         }
         (Method::Get, "/api/services") => respond_json(request, 200, &service_statuses(&state)),
+        (Method::Get, _) if path.starts_with("/api/manager/") => {
+            let manager_path = request.url().to_string();
+            match manager_proxy(&state, &manager_path, "GET", None) {
+                Ok(result) => respond_json(request, 200, &result),
+                Err((code, message)) => respond_json(request, code, &json!({"error": message})),
+            }
+        }
+        (Method::Post, _) if path.starts_with("/api/manager/") => {
+            let manager_path = path.clone();
+            let body = match read_body(&mut request) {
+                Ok(body) => body,
+                Err(error) => {
+                    respond_json(request, 400, &json!({"error": error}));
+                    return;
+                }
+            };
+            match manager_proxy(&state, &manager_path, "POST", Some(&body)) {
+                Ok(result) => respond_json(request, 200, &result),
+                Err((code, message)) => respond_json(request, code, &json!({"error": message})),
+            }
+        }
+        (Method::Put, _) if path.starts_with("/api/manager/") => {
+            let manager_path = path.clone();
+            let body = match read_body(&mut request) {
+                Ok(body) => body,
+                Err(error) => {
+                    respond_json(request, 400, &json!({"error": error}));
+                    return;
+                }
+            };
+            match manager_proxy(&state, &manager_path, "PUT", Some(&body)) {
+                Ok(result) => respond_json(request, 200, &result),
+                Err((code, message)) => respond_json(request, code, &json!({"error": message})),
+            }
+        }
+        (Method::Delete, _) if path.starts_with("/api/manager/") => {
+            match manager_proxy(&state, &path, "DELETE", None) {
+                Ok(result) => respond_json(request, 200, &result),
+                Err((code, message)) => respond_json(request, code, &json!({"error": message})),
+            }
+        }
         (Method::Post, "/api/crawl") => {
             let body = match read_body(&mut request) {
                 Ok(body) => body,
@@ -1039,6 +1086,7 @@ fn service_statuses(state: &AppState) -> Vec<Value> {
     for (index, service) in state.config.services.clone().into_iter().enumerate() {
         let tx = tx.clone();
         let gateway = state.config.gateway_addr.clone();
+        let manager_addr = state.config.manager_addr.clone();
         let processes = state.processes.clone();
         thread::spawn(move || {
             let process = managed_state(&processes, &service.name);
@@ -1047,12 +1095,23 @@ fn service_statuses(state: &AppState) -> Vec<Value> {
                 return;
             }
             let rpc = json!({"stream": service.stream, "service": "ping", "payload": {}, "timeout_ms": 3000});
-            let result = match call_gateway(&gateway, &rpc) {
-                Ok(details) => {
-                    json!({"name": service.name, "stream": service.stream, "online": true, "managed": service.command.is_some() || process == "adopted", "process": process, "pid": process_pid(&processes, &service.name), "health": if process == "not_managed" { "external" } else { "online" }, "details": details})
+            let result = if service.name == "workflow-manager" {
+                match manager_health(&manager_addr) {
+                    Ok(details) => {
+                        json!({"name": service.name, "stream": service.stream, "online": true, "managed": service.command.is_some() || process == "adopted", "process": process, "pid": process_pid(&processes, &service.name), "health": "online", "details": details})
+                    }
+                    Err(error) => {
+                        json!({"name": service.name, "stream": service.stream, "online": false, "managed": service.command.is_some() || process == "adopted", "process": process, "pid": process_pid(&processes, &service.name), "health": "service_unavailable", "error": error})
+                    }
                 }
-                Err(error) => {
-                    json!({"name": service.name, "stream": service.stream, "online": false, "managed": service.command.is_some() || process == "adopted", "process": process, "pid": process_pid(&processes, &service.name), "health": gateway_error_health(&error), "error": error})
+            } else {
+                match call_gateway(&gateway, &rpc) {
+                    Ok(details) => {
+                        json!({"name": service.name, "stream": service.stream, "online": true, "managed": service.command.is_some() || process == "adopted", "process": process, "pid": process_pid(&processes, &service.name), "health": if process == "not_managed" { "external" } else { "online" }, "details": details})
+                    }
+                    Err(error) => {
+                        json!({"name": service.name, "stream": service.stream, "online": false, "managed": service.command.is_some() || process == "adopted", "process": process, "pid": process_pid(&processes, &service.name), "health": gateway_error_health(&error), "error": error})
+                    }
                 }
             };
             let _ = tx.send((index, result));
@@ -1064,6 +1123,64 @@ fn service_statuses(state: &AppState) -> Vec<Value> {
         statuses[index] = result;
     }
     statuses
+}
+
+fn manager_health(manager_addr: &str) -> Result<Value, String> {
+    let endpoint = format!("{}/health", manager_addr.trim_end_matches('/'));
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_secs(3))
+        .build();
+    match agent.get(&endpoint).call() {
+        Ok(response) => response
+            .into_string()
+            .map_err(|e| e.to_string())
+            .and_then(|body| serde_json::from_str(&body).map_err(|e| e.to_string())),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn manager_proxy(
+    state: &AppState,
+    path: &str,
+    method: &str,
+    body: Option<&str>,
+) -> Result<Value, (u16, String)> {
+    let suffix = path.strip_prefix("/api/manager").unwrap_or("/");
+    let endpoint = format!(
+        "{}/api/v1{}",
+        state.config.manager_addr.trim_end_matches('/'),
+        suffix
+    );
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_secs(130))
+        .build();
+    let request = agent
+        .request(method, &endpoint)
+        .set("Content-Type", "application/json");
+    let response = match body {
+        Some(content) => request.send_string(content),
+        None => request.call(),
+    };
+    match response {
+        Ok(response) => {
+            let content_type = response.header("Content-Type").unwrap_or("").to_string();
+            let raw = response.into_string().map_err(|e| (502, e.to_string()))?;
+            if content_type.starts_with("text/markdown") || content_type.starts_with("text/plain") {
+                return Ok(Value::String(raw));
+            }
+            serde_json::from_str(&raw)
+                .map_err(|e| (502, format!("manager response JSON invalid: {e}")))
+        }
+        Err(ureq::Error::Status(code, response)) => {
+            let raw = response.into_string().unwrap_or_default();
+            let message = serde_json::from_str::<Value>(&raw)
+                .ok()
+                .and_then(|v| v.get("error").and_then(Value::as_str).map(str::to_string))
+                .unwrap_or(raw);
+            Err((code as u16, message))
+        }
+        Err(error) => Err((502, format!("无法连接 workflow manager: {error}"))),
+    }
 }
 
 fn gateway_error_code(error: &str) -> u16 {

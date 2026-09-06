@@ -1,49 +1,78 @@
 {
   "listen_addr": "127.0.0.1:8090",
   "gateway_addr": "http://127.0.0.1:18080",
+  "manager_addr": "http://127.0.0.1:18081",
   "crawl_timeout_ms": 120000,
   "services": [
     {
       "name": "http-gateway",
       "stream": "dev:http-gateway-stream",
       "command": "..\\bin\\http-gateway-service\\http-gateway-service_windows_amd64.exe",
-      "args": ["-config_path", "config.json"],
+      "args": [
+        "-config_path",
+        "config.json"
+      ],
       "workdir": "..\\bin\\http-gateway-service"
     },
     {
       "name": "crawler",
       "stream": "dev:crawler-stream",
       "command": "..\\bin\\crawler-service\\crawler-service_windows_amd64.exe",
-      "args": ["-config_path", "config.json"],
+      "args": [
+        "-config_path",
+        "config.json"
+      ],
       "workdir": "..\\bin\\crawler-service"
     },
     {
       "name": "parser",
       "stream": "dev:parser-stream",
       "command": "..\\bin\\parser-service\\parser-service_windows_amd64.exe",
-      "args": ["-config_path", "config.json"],
+      "args": [
+        "-config_path",
+        "config.json"
+      ],
       "workdir": "..\\bin\\parser-service"
     },
     {
       "name": "redis_cache",
       "stream": "dev:redis_cache-stream",
       "command": "..\\bin\\redis_cache-service\\redis_cache-service_windows_amd64.exe",
-      "args": ["-config_path", "config.json"],
+      "args": [
+        "-config_path",
+        "config.json"
+      ],
       "workdir": "..\\bin\\redis_cache-service"
     },
     {
       "name": "email",
       "stream": "dev:email-stream",
       "command": "..\\bin\\email-service\\email-service_windows_amd64.exe",
-      "args": ["-config_path", "config.json"],
+      "args": [
+        "-config_path",
+        "config.json"
+      ],
       "workdir": "..\\bin\\email-service"
     },
     {
       "name": "calculator",
       "stream": "dev:calculator-stream",
       "command": "..\\bin\\calculator-service\\calculator-service_windows_amd64.exe",
-      "args": ["-config_path", "config.json"],
+      "args": [
+        "-config_path",
+        "config.json"
+      ],
       "workdir": "..\\bin\\calculator-service"
+    },
+    {
+      "name": "workflow-manager",
+      "stream": "local:workflow-manager",
+      "command": "..\\bin\\web_supervisor-manager\\web_supervisor-manager_windows_amd64.exe",
+      "args": [
+        "-config_path",
+        "config.json"
+      ],
+      "workdir": "..\\bin\\web_supervisor-manager"
     }
   ]
 }
