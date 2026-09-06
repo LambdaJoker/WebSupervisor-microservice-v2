@@ -309,6 +309,16 @@ git restore -- microservice/bin/<service>/config.json
 ```
 
 不要使用 `git add -f` 提交 `config.local.json`、`.env` 或真实密码。提交前可用 `git status --short` 和 `git diff --check` 检查。
+## JSON 工作流轮询与增量文档
+
+新版 `web_supervisor-manager` 提供独立 HTTP 管理器：支持 `${ENV}` 环境变量、`#{...}` 全局变量、`%{...}` 局部变量，以及 `get`、`set`、`func`、`execfunc`、`if`、`while`、`operators` 等服务。任务可在 Rust GUI 中创建、启用/暂停、立即执行和查看 JSON/Markdown 文档与 Diff。
+
+- Manager 默认地址：`http://127.0.0.1:18081`
+- GUI 通过 `/api/manager/...` 代理 manager API
+- 状态保存到 SQLite，文档和快照保存在 `data/workflow-manager/documents/`
+- 轮询关闭 GUI 后仍继续运行
+- 详细任务格式和 API：[`microservice/web_supervisor-manager/WORKFLOW_GUIDE.md`](microservice/web_supervisor-manager/WORKFLOW_GUIDE.md)
+
 ## 调试工具
 
 - `MyTool/streams-manager`：Redis Stream 命令行管理工具，可查看/添加/删除 Stream 与消息（详见其目录内 README），排障时可用 `streams-manager ls dev:crawler-stream` 直接查看队列内容。
