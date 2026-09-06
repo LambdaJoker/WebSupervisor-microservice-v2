@@ -3,6 +3,7 @@
 **网页监控编排器**：按固定周期执行 `jobs.json` 中定义的监控任务 —— 抓取网页 → 解析片段 → 与上次内容比较 → 有变化则发送邮件通知。它是本项目的顶层应用，串联了 crawler / parser / redis_cache / email 四个微服务。
 
 > 只关心"怎么写 jobs.json"的用户请直接阅读 [JOBS_GUIDE.md](JOBS_GUIDE.md)。
+> 新版 JSON 工作流、轮询任务、增量文档和 HTTP API 请阅读 [WORKFLOW_GUIDE.md](WORKFLOW_GUIDE.md)。
 
 ## 架构
 

@@ -10,7 +10,7 @@
     "goroutine_num": 5,
     "get_timeout_ms": 50000,
     "max_message_bytes": 2048000,
-    "cache_key_prefix":"web_supervisor:"
+    "cache_key_prefix": "web_supervisor:"
   },
   "custom": {
     "crawler-service_consumer_stream": "dev:crawler-stream",
@@ -19,8 +19,17 @@
     "redis_cache-service_consumer_stream": "dev:redis_cache-stream",
     "jobs_path": "./jobs.json",
     "redis_app_name": "web_supervisor",
-    "email_tos": [ "${QQ_MAIL_ACCOUNT_2667}"],
-    "email_tos_admin": ["${QQ_MAIL_ACCOUNT_2667}"],
+    "email_tos": [
+      "${QQ_MAIL_ACCOUNT_2667}"
+    ],
+    "email_tos_admin": [
+      "${QQ_MAIL_ACCOUNT_2667}"
+    ],
     "interval_second": 120
+  },
+  "api": {
+    "listen_addr": "127.0.0.1:18081",
+    "data_dir": "data/workflow-manager",
+    "gateway_url": "http://127.0.0.1:18080"
   }
 }

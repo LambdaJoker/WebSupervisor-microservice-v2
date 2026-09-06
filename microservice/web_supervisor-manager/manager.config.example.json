@@ -1,0 +1,13 @@
+{
+  "api": {
+    "listen_addr": "127.0.0.1:18081",
+    "data_dir": "data/workflow-manager",
+    "gateway_url": "http://127.0.0.1:18080",
+    "gateway_timeout_ms": 0
+  },
+  "custom": {
+    "crawler_stream": "dev:crawler-stream",
+    "parser_stream": "dev:parser-stream",
+    "redis_app_name": "web_supervisor"
+  }
+}
