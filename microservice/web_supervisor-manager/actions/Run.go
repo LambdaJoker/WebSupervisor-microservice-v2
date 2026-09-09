@@ -41,7 +41,7 @@ func run_one(job *models.Job) {
 	changed_new_datas := []*models.CacheParameter{} //->map[key][old,new]
 	for k, v := range pd {
 		key := fmt.Sprintf("%s:%s", job.Crawler.URL, k)
-		newCaches[i] = models.CacheParameter{models.REDIS_APP_NAME, key, v}
+		newCaches[i] = models.CacheParameter{App: models.REDIS_APP_NAME, Key: key, Data: v}
 		log.Printf(">>> Debug - k: %s\n", newCaches[i].Key)
 		r, e := services.CacheCompareAndSave(&newCaches[i])
 		log.Printf(">>> Debug - r: %+v\n", r)

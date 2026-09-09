@@ -32,6 +32,7 @@ for %%s in (%services%) do (
                 cd ..
                 exit /b 1
             )
+            if exist "config.json" copy /Y "config.json" "!servicedir!\config.json" >nul
         )
     )
     cd ..

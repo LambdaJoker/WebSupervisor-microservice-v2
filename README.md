@@ -18,13 +18,47 @@ WebSupervisor-microservice-v2/
 │   ├── parser-service/            # HTML/XPath/JSON 解析服务
 │   ├── redis_cache-service/       # 缓存与变更比较服务
 │   ├── email-service/             # SMTP 邮件服务
-│   ├── web_supervisor-manager/    # 网页监控编排器（jobs.json 驱动）
+│   ├── web_supervisor-manager/    # 网页监控编排器与 HTTP 工作流管理器
+│   ├── http-gateway-service/      # Redis Streams 的 HTTP RPC 网关
+│   ├── web-ui-service/            # Rust 桌面/浏览器控制台
 │   ├── microservice-manager/      # 调用各服务的示例客户端
-│   ├── build_web_supervisor.bat   # 一键交叉编译 5 个服务
-│   └── run_web_supervisor.bat     # 一键启动 5 个服务
+│   ├── build_web_supervisor.bat   # 一键交叉编译 6 个 Go 服务
+│   └── run_web_supervisor.bat     # 旧版一键启动脚本（启动 5 个 Go 服务）
 ├── go.work                        # Go workspace，聚合所有 module
 └── go.mod
 ```
+
+## 快速开始
+
+### 前置条件
+
+- Windows 10/11（桌面模式需要 WebView2 Runtime；浏览器模式不需要桌面窗口）。
+- Redis，默认地址为 `localhost:6379`。
+- Go 1.25+，用于编译 Go 微服务。
+- Rust stable toolchain，包含 Cargo，用于编译 Rust 控制台。
+
+### 推荐启动流程（Windows）
+
+```powershell
+# 1. 编译 Go 服务，产物写入 microservice\bin\
+cd microservice
+.\build_web_supervisor.bat
+
+# 2. 启动浏览器版控制台
+cd web-ui-service
+cargo run --release -- --web -config_path .\config.json
+```
+
+然后打开 `http://127.0.0.1:8090`，在控制台中启动需要的服务。默认配置会使用以下端口：
+
+| 组件 | 地址 | 作用 |
+|---|---|---|
+| Redis | `localhost:6379` | Redis Streams 消息与缓存 |
+| HTTP Gateway | `http://127.0.0.1:18080` | 将 HTTP RPC 转发到 Redis Streams |
+| Workflow Manager | `http://127.0.0.1:18081` | 轮询执行 JSON workflow、保存文档和 Diff |
+| Rust GUI | `http://127.0.0.1:8090` | 服务控制、抓取、工作流管理和调试 |
+
+`build_web_supervisor.bat` 会编译 crawler、parser、redis_cache、email、http-gateway 和 web_supervisor-manager 的 Windows/Linux/ARM64 目标；`calculator-service` 是独立示例，需要在其目录单独编译；Rust 控制台也需要单独使用 Cargo 编译。旧版 `run_web_supervisor.bat` 依赖各服务目录下已有的可执行文件，优先推荐使用 GUI 的服务控制功能。
 
 ## 整体架构
 
@@ -236,20 +270,73 @@ web_supervisor-manager
 
 ## Rust 轻量控制台
 
-`microservice/web-ui-service` 默认编译为原生 Rust 桌面 GUI（`wry` + `tao`），复用现有 HTML/CSS 页面和 HTTP Gateway、Redis Streams 协议，不引入 Electron、Node 或独立数据库。Wry/Tao 比完整 Tauri 壳更轻量，但保留了真正的 WebView 桌面窗口；GUI 支持服务启动/停止/重启、批量操作、日志、HTTP 抓取、RPC 调试和最近结果查看。
+`microservice/web-ui-service` 是一个 Rust 控制台，支持原生 WebView 桌面模式和浏览器模式。它复用现有 HTTP Gateway、Redis Streams 和 Workflow Manager，不引入 Electron、Node 或额外数据库。
+
+### 启动方式
 
 ```powershell
 cd microservice\web-ui-service
+
+# 开发版浏览器模式
+cargo run -- --web -config_path .\config.json
+
+# 发布版浏览器模式
+cargo run --release -- --web -config_path .\config.json
+
+# 发布版桌面模式（Windows 需要 WebView2 Runtime）
 cargo run --release -- -config_path .\config.json
 ```
 
-需要浏览器控制台时使用 Web 模式：
+浏览器模式访问 `http://127.0.0.1:8090`。若 8090 已被占用，修改 `config.json`（推荐复制为 `config.local.json`）中的 `listen_addr`。
+
+### 主要功能
+
+- 查看所有微服务的在线状态、健康详情、PID 和进程管理状态。
+- 启动、停止、重启单个服务，或批量启动/停止/重启服务。
+- 接管已经在控制台外启动的唯一匹配进程。
+- 查看服务日志、清理日志、编辑服务启动配置。
+- 调用 crawler-service 抓取网页，并查看持久化的最近结果和历史记录。
+- 通过 RPC 调试面板直接调用 Redis Streams 服务。
+- 创建、启用/暂停、立即执行 Workflow Manager 任务，查看 JSON/Markdown 文档、快照和增量 Diff。
+
+### 服务状态与“接管”规则
+
+- crawler、parser、redis_cache、email、calculator、http-gateway 使用 Gateway RPC `ping` 判断在线。
+- `workflow-manager` 是独立 HTTP 服务，使用 `GET http://127.0.0.1:18081/health` 判断在线；它不是 Gateway 的 Redis Stream RPC 服务，因此不应使用 `local:workflow-manager` 的 Gateway ping 作为接管条件。
+- “启动”由 GUI 创建并管理新进程；“接管”会按 `services[].command` 的可执行文件名查找外部进程，只有唯一匹配的 PID 才会接管，避免误杀其它同名进程。
+- `not_managed` 表示服务在线但未由 GUI 管理；`running` 表示由 GUI 启动；`adopted` 表示由 GUI 接管。
+- GUI 关闭时会停止由 GUI 启动或接管的进程。若希望 Workflow Manager 在关闭 GUI 后继续轮询，请先独立启动 manager，再让 GUI 仅作为代理使用，不要点击“启动”或“接管”。
+
+### 常用 HTTP API
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `GET` | `/api/services` | 获取所有服务状态和健康详情 |
+| `POST` | `/api/services/:name/start` | 启动配置中的服务 |
+| `POST` | `/api/services/:name/stop` | 停止 GUI 管理的服务 |
+| `POST` | `/api/services/:name/restart` | 重启 GUI 管理的服务 |
+| `POST` | `/api/services/:name/adopt` | 接管外部运行中的唯一匹配进程 |
+| `GET/PUT` | `/api/services/:name/config` | 读取或保存服务本地配置 |
+| `GET` | `/api/services/:name/logs` | 查看服务日志 |
+| `POST` | `/api/crawl` | 调用 crawler-service 抓取网页 |
+| `POST` | `/api/rpc` | 调用任意 Redis Streams RPC |
+| `GET/POST/PUT/DELETE` | `/api/manager/...` | 代理 Workflow Manager 的 `/api/v1/...` API |
+| `GET/DELETE` | `/api/recent`、`/api/history` | 查看或清理抓取历史 |
+
+### 接管失败排查
 
 ```powershell
-cargo run --release -- --web -config_path .\config.json
+# 1. 确认 Workflow Manager 自身在线
+curl.exe -i http://127.0.0.1:18081/health
+
+# 2. 确认 GUI 能读取到 manager 状态
+curl.exe -i http://127.0.0.1:8090/api/services
+
+# 3. 执行接管
+curl.exe -i -X POST http://127.0.0.1:8090/api/services/workflow-manager/adopt
 ```
 
-桌面模式会直接打开原生 WebView 窗口，页面采用纯白玻璃风格；需要浏览器控制台时使用 Web 模式。Windows 需要系统已安装 WebView2 Runtime（Windows 11 通常自带）。浏览器打开 `http://127.0.0.1:8090`。Gateway 根路径 `/` 返回 404 是正常的，实际接口是 `POST /rpc`；如果返回 HTTP 504，表示 Gateway 已连通但目标 Redis Stream 没有服务消费者响应。
+如果 `/health` 不是 HTTP 200，先启动或修正 `manager_addr`。如果提示“已经由控制台管理”，说明该服务已经处于 `running` 或 `adopted` 状态；如果提示无法定位唯一进程，请检查 `command` 的文件名和是否存在多个同名进程。
 
 ## 构建与运行
 
@@ -258,10 +345,10 @@ cargo run --release -- --web -config_path .\config.json
 ```bat
 cd microservice
 
-:: 一键交叉编译 5 个服务（crawler/email/parser/redis_cache/web_supervisor）到 bin\ 目录
+:: 一键交叉编译 6 个 Go 服务（crawler/email/parser/redis_cache/http-gateway/web_supervisor）到 bin\ 目录
 build_web_supervisor.bat
 
-:: 一键启动 5 个服务（各开一个 cmd 窗口）
+:: 旧版一键启动 5 个 Go 服务（各开一个 cmd 窗口，不含 HTTP Gateway）
 run_web_supervisor.bat
 ```
 
@@ -309,6 +396,65 @@ git restore -- microservice/bin/<service>/config.json
 ```
 
 不要使用 `git add -f` 提交 `config.local.json`、`.env` 或真实密码。提交前可用 `git status --short` 和 `git diff --check` 检查。
+## JSON 工作流轮询与增量文档
+
+新版 `web_supervisor-manager` 提供独立 HTTP Workflow Manager：按照任务的 `schedule` 轮询执行 `workflow.jobs`，把结果保存为 JSON/Markdown 文档，并根据 `identity`、`compare` 生成增量 Diff。完整字段和接口请阅读 [`microservice/web_supervisor-manager/WORKFLOW_GUIDE.md`](microservice/web_supervisor-manager/WORKFLOW_GUIDE.md)。
+
+### 最小任务结构
+
+```json
+{
+  "name": "公告监控",
+  "enabled": true,
+  "schedule": { "interval_seconds": 120 },
+  "workflow": {
+    "jobs": [
+      {
+        "stream": "dev:crawler-stream",
+        "service": "http_request",
+        "payload": { "url": "https://example.com/data.json", "method": "GET" },
+        "resultto": "response"
+      },
+      {
+        "stream": "",
+        "service": "get",
+        "payload": { "path": "response.content", "default": "" },
+        "resultto": "content"
+      }
+    ]
+  },
+  "document": {
+    "source": "content",
+    "directory": "documents/announcements",
+    "identity": "id",
+    "compare": ["id", "title", "updated_at"]
+  }
+}
+```
+
+### 变量、内置服务与 Diff
+
+- `${NAME}`：读取系统环境变量；严格模式下变量不存在会报错。
+- `#{path.to.value}`：读取 Workflow Manager 配置中的 `custom` 全局变量。
+- `%{path.to.value}`：读取当前 workflow 局部变量。
+- 内置服务包括 `get`、`set`、`func`、`execfunc`、`if`、`while` 和 `operators`。
+- `operators` 支持算术、长度和比较/逻辑操作，例如 `+`、`-`、`*`、`/`、`%`、`len`、`==`、`!=`、`>`、`>=`、`<`、`<=`、`&&`、`||`、`!`。
+- 第一次成功运行建立 baseline；后续运行根据 `identity` 和 `compare` 生成新增、修改、删除 Diff，并保留快照。
+- `interval_seconds` 最小为 30 秒，也支持五段 cron 表达式；手动 `run` 会绕过轮询间隔限制。
+
+### Manager 地址、数据和 API
+
+- 默认地址：`http://127.0.0.1:18081`
+- 健康检查：`GET /health`
+- 任务 API：`/api/v1/tasks`、`/api/v1/tasks/:id/run`、`pause`、`resume`
+- 文档 API：`/api/v1/tasks/:id/document`、`diff`、`snapshots`
+- 工作流 API：`POST /api/v1/workflow/validate`、`dry-run`
+- 事件流：`GET /api/v1/events`（SSE）
+- 状态库：`manager.db`（SQLite）
+- 当前文档、Markdown、baseline、snapshot：`data/workflow-manager/documents/`
+
+GUI 通过 `/api/manager/...` 代理这些接口。Manager 是独立进程；如果由 GUI 启动或接管，GUI 关闭时会停止该进程。要让轮询在 GUI 关闭后继续，请独立启动 Manager，并在 GUI 中不要接管它。
+
 ## 调试工具
 
 - `MyTool/streams-manager`：Redis Stream 命令行管理工具，可查看/添加/删除 Stream 与消息（详见其目录内 README），排障时可用 `streams-manager ls dev:crawler-stream` 直接查看队列内容。

@@ -3,6 +3,16 @@
 **网页监控编排器**：按固定周期执行 `jobs.json` 中定义的监控任务 —— 抓取网页 → 解析片段 → 与上次内容比较 → 有变化则发送邮件通知。它是本项目的顶层应用，串联了 crawler / parser / redis_cache / email 四个微服务。
 
 > 只关心"怎么写 jobs.json"的用户请直接阅读 [JOBS_GUIDE.md](JOBS_GUIDE.md)。
+> 新版 JSON 工作流、轮询任务、增量文档和 HTTP API 请阅读 [WORKFLOW_GUIDE.md](WORKFLOW_GUIDE.md)。
+
+## 两种运行模式
+
+当前 manager 同时包含两类能力：
+
+1. **传统 `jobs.json` 监控**：通过 crawler/parser/redis_cache/email 微服务执行网页抓取、解析、变更检测和邮件通知。
+2. **HTTP Workflow Manager**：通过 `schedule` 轮询执行 JSON workflow，把结果保存为 JSON/Markdown 文档，并按 `identity`、`compare` 生成增量 Diff。
+
+HTTP 模式默认监听 `http://127.0.0.1:18081`，健康检查为 `GET /health`，详细任务格式和 API 见 [WORKFLOW_GUIDE.md](WORKFLOW_GUIDE.md)。Rust GUI 通过 `/api/manager/...` 代理 HTTP API；如果 manager 由 GUI 启动或接管，GUI 关闭时会停止该进程，想让轮询独立运行时请单独启动 manager。
 
 ## 架构
 

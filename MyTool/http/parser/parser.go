@@ -2,7 +2,7 @@ package parser
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 	"strings"
 
 	stringtool "github.com/totooicu/go-mytool/string"
@@ -10,7 +10,7 @@ import (
 
 func ParseHTML(content string, keys []string) []string {
 	var results []string
-	
+
 	for _, key := range keys {
 		parts := strings.Split(key, ",")
 		if len(parts) >= 2 {
@@ -20,26 +20,25 @@ func ParseHTML(content string, keys []string) []string {
 			results = append(results, values...)
 		}
 	}
-	
+
 	return results
 }
-
 
 func ParseJSON(content string, jsonKeys []string) map[string][]any {
 	var data interface{}
 	if err := json.Unmarshal([]byte(content), &data); err != nil {
 		return nil
 	}
-		
+
 	var results map[string][]any = make(map[string][]any)
-		
+
 	for _, key := range jsonKeys {
 		value := GetJSONValue(data, strings.Split(key, "."))
 		if value != nil {
 			results[key] = append(results[key], value)
 		}
 	}
-	
+
 	return results
 }
 
@@ -53,21 +52,15 @@ func GetJSONValue(data interface{}, path []string) interface{} {
 				return nil
 			}
 		case []interface{}:
-			if idx, err := fmt.Sscanf(key, "%d"); err == nil {
-				if idx >= 0 && idx < len(v) {
-					data = v[idx]
-				} else {
-					return nil
-				}
-			} else {
+			idx, err := strconv.Atoi(key)
+			if err != nil || idx < 0 || idx >= len(v) {
 				return nil
 			}
+			data = v[idx]
 		default:
 			return nil
 		}
 	}
-	
+
 	return data
 }
-
-
