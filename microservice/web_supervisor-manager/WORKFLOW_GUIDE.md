@@ -154,4 +154,4 @@ web_supervisor-manager.exe -config_path config.json
 - `POST /api/v1/workflow/dry-run`
 - `GET /api/v1/events`（SSE，任务和运行状态变化）
 
-GUI 通过 `/api/manager/...` 代理这些接口，manager 独立运行后，即使关闭 GUI，后台轮询仍会继续。
+GUI 通过 `/api/manager/...` 代理这些接口。Manager 独立运行时，即使关闭 GUI，后台轮询仍会继续；如果 manager 是由 GUI 启动或接管的，GUI 关闭时会按进程管理规则停止它。
