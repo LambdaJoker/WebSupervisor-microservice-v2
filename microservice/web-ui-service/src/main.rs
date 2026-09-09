@@ -755,6 +755,10 @@ fn stop_service(state: &AppState, name: &str) -> Result<Value, (u16, String)> {
 }
 
 fn service_online(state: &AppState, service: &ServiceConfig) -> bool {
+    if service.name == "workflow-manager" {
+        return manager_health(&state.config.manager_addr).is_ok();
+    }
+
     let rpc =
         json!({"stream": service.stream, "service": "ping", "payload": {}, "timeout_ms": 1500});
     call_gateway(&state.config.gateway_addr, &rpc).is_ok()
